@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     // Call Claude API for script rewriting
     const response = await anthropic.messages.create({
       model: DEFAULT_MODEL,
-      max_tokens: 8192, // Allow for longer rewrites
+      max_tokens: 16384, // Increased to handle longer scripts (52+ min) without truncation
       temperature: 0.7, // Slightly higher temperature for creative rewriting
       messages: [
         {

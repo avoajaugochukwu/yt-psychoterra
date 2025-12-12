@@ -130,6 +130,17 @@ ${analysis.philosopher_matches.map(p => `- ${p.name} (${p.era}): ${p.teaching}\n
 **Suggestions for Improvement:**
 ${analysis.suggestions_for_improvement.map((s, i) => `${i + 1}. ${s}`).join('\n')}
 
+### REWRITING PHILOSOPHY
+
+**CRITICAL: This is a REWRITE task, NOT a summarization or condensation task.**
+
+Your goal is to transform and ENHANCE the existing content while maintaining approximately the same length. Think of this as upgrading every sentence to a better version of itself, not reducing the script.
+
+- **REWRITE** = Transform weak content into stronger content of similar or greater length
+- **ENHANCE** = Expand weak points with better examples, clearer explanations, and more compelling language
+- **PRESERVE LENGTH** = When removing redundancy, replace it with value-adding content
+- **The goal is BETTER, not SHORTER**
+
 ### REWRITING GUIDELINES
 
 **1. STRENGTHEN THE HOOK:**
@@ -157,6 +168,7 @@ ${analysis.suggestions_for_improvement.map((s, i) => `${i + 1}. ${s}`).join('\n'
 - Don't change the fundamental topic or thesis
 - Keep key facts and main arguments intact
 - Preserve the author's voice and style
+- Preserve all key points, examples, and narrative beats
 
 ### OUTPUT FORMAT
 
@@ -164,9 +176,12 @@ Return ONLY the rewritten script text. No JSON, no metadata, no commentary - jus
 
 ### CONSTRAINTS
 
-- The rewritten script should be approximately the same length as the original (±15%)
+- **LENGTH PRESERVATION (CRITICAL):** The rewritten script MUST maintain approximately the same length as the original with a ±10% tolerance
+- **DO NOT SUMMARIZE OR CONDENSE:** REWRITE and ENHANCE the script, do NOT cut or reduce content
+- If the original script is 7,800 words, the rewrite should be between 7,020-8,580 words (±10%)
+- Preserve all key points, examples, transitions, and narrative beats while improving quality
 - Every claim must remain factually accurate or be improved for accuracy
-- Don't add fluff - every sentence should serve a purpose
+- Avoid meaningless fluff, but DO replace weak content with stronger, value-adding content
 - Natural conversational tone suitable for voiceover
 - No formatting (bold, italics, etc.) - pure text only
 `;
