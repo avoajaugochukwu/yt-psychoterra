@@ -1,5 +1,9 @@
 import Anthropic from '@anthropic-ai/sdk';
 
+// Default configuration
+export const DEFAULT_MODEL = 'claude-sonnet-4-20250514';
+export const DEFAULT_TEMPERATURE = 0.7;
+
 let anthropicClient: Anthropic | null = null;
 
 export function getAnthropicClient() {
@@ -18,17 +22,20 @@ export function getAnthropicClient() {
   return anthropicClient;
 }
 
+// Export the client directly for convenience
+export const anthropic = getAnthropicClient();
+
 export async function generateWithClaude(
   prompt: string,
   systemPrompt?: string,
-  temperature: number = 0.7,
+  temperature: number = DEFAULT_TEMPERATURE,
   maxTokens: number = 8192
 ) {
   const client = getAnthropicClient();
 
   try {
     const response = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: DEFAULT_MODEL,
       max_tokens: maxTokens,
       temperature,
       system: systemPrompt,

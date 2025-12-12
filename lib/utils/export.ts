@@ -1,8 +1,6 @@
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import {
-  HistoricalTopic,
-  NarrativeOutline,
   Script,
   Scene,
   StoryboardScene,
@@ -11,8 +9,6 @@ import {
 import { SCENE_DURATION_SECONDS } from '../config/development';
 
 interface ExportData {
-  topic: HistoricalTopic | null;
-  outline: NarrativeOutline | null;
   script: Script | null;
   scenes: Scene[];
   storyboardScenes: StoryboardScene[];
@@ -80,7 +76,7 @@ function createFFmpegManifest(data: ExportData): string {
 // Create assembly guide markdown
 function createAssemblyGuide(data: ExportData): string {
   let guide = '# Video Assembly Guide\n\n';
-  guide += `## Project: ${data.topic?.title || 'Untitled Story'}\n`;
+  guide += `## Project: Psychoterra Export\n`;
   guide += `Generated on: ${new Date().toLocaleString()}\n\n`;
 
   guide += '## File Structure\n\n';
@@ -113,7 +109,7 @@ function createAssemblyGuide(data: ExportData): string {
 // Create scene timeline JSON for advanced editing
 function createSceneTimeline(data: ExportData): object {
   const timeline = {
-    project: data.topic?.title || 'Untitled',
+    project: 'Psychoterra',
     total_scenes: data.storyboardScenes.length,
     scenes: data.storyboardScenes.map((scene, index) => ({
       scene_number: index + 1,
@@ -129,7 +125,7 @@ function createSceneTimeline(data: ExportData): object {
 export async function createExportZip(data: ExportData): Promise<void> {
   const zip = new JSZip();
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const projectName = data.topic?.title?.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'story';
+  const projectName = 'psychoterra';
   
   // Create media folders
   const mediaFolder = zip.folder('media');
@@ -172,9 +168,7 @@ export async function createExportZip(data: ExportData): Promise<void> {
   const metadata = {
     exportedAt: new Date().toISOString(),
     projectName,
-    title: data.topic?.title,
     wordCount: data.script?.word_count,
-    targetDuration: data.script?.target_duration,
     currentStep: data.currentStep,
     assetCounts: {
       scenes: data.scenes.length,
@@ -186,40 +180,7 @@ export async function createExportZip(data: ExportData): Promise<void> {
   // Add script
   if (data.script) {
     zip.file('script.txt', data.script.content);
-    zip.file('script.md', `# ${data.topic?.title || 'Story'}\n\n${data.script.content}`);
-  }
-  
-  // Add outline
-  if (data.outline) {
-    let outlineText = 'NARRATIVE OUTLINE\n' + '='.repeat(50) + '\n\n';
-    outlineText += `Theme: ${data.outline.narrative_theme}\n`;
-    outlineText += `Dramatic Question: ${data.outline.dramatic_question}\n\n`;
-
-    const acts = [
-      { name: 'Act 1 - Setup', data: data.outline.act1_setup },
-      { name: 'Act 2 - Conflict', data: data.outline.act2_conflict },
-      { name: 'Act 3 - Resolution', data: data.outline.act3_resolution }
-    ];
-
-    acts.forEach(({ name, data: act }) => {
-      outlineText += `\n${name}\n` + '-'.repeat(30) + '\n';
-      outlineText += `Goal: ${act.goal}\n`;
-      if (act.emotional_arc) outlineText += `Emotional Arc: ${act.emotional_arc}\n`;
-      outlineText += `\nScenes:\n`;
-      act.scenes.forEach((scene, i) => {
-        outlineText += `  ${i + 1}. ${scene}\n`;
-      });
-      if (act.key_moments && act.key_moments.length > 0) {
-        outlineText += `\nKey Moments:\n`;
-        act.key_moments.forEach(moment => {
-          outlineText += `  - ${moment}\n`;
-        });
-      }
-      outlineText += '\n';
-    });
-
-    zip.file('outline.txt', outlineText);
-    zip.file('outline.json', JSON.stringify(data.outline, null, 2));
+    zip.file('script.md', `# Psychoterra Script\n\n${data.script.content}`);
   }
   
   // Generate and download the zip file

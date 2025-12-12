@@ -1,11 +1,11 @@
 import { create } from 'zustand';
-import { SessionStore, WorkflowStep } from './types';
+import { SessionStore, WorkflowStep, EnhancementStage } from './types';
 
 const initialState = {
   currentStep: 1 as WorkflowStep,
-  historicalTopic: null,
-  research: null,
-  outline: null,
+  originalScript: '',
+  enhancedScript: null,
+  enhancementStage: 'idle' as EnhancementStage,
   script: null,
   scenes: [],
   storyboardScenes: [],
@@ -17,11 +17,11 @@ const initialState = {
 export const useSessionStore = create<SessionStore>((set) => ({
   ...initialState,
 
-  setHistoricalTopic: (topic) => set({ historicalTopic: topic }),
+  setOriginalScript: (script) => set({ originalScript: script }),
 
-  setResearch: (research) => set({ research }),
+  setEnhancedScript: (enhanced) => set({ enhancedScript: enhanced }),
 
-  setOutline: (outline) => set({ outline }),
+  setEnhancementStage: (stage) => set({ enhancementStage: stage }),
 
   setScript: (script) => set({ script }),
 

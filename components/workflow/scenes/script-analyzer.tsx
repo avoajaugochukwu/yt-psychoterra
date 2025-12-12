@@ -33,8 +33,8 @@ export function ScriptAnalyzer({ onComplete }: ScriptAnalyzerProps) {
     hasAnalyzedRef.current = true;
     clearErrors();
 
-    // Use polished script if available, otherwise fall back to draft
-    const scriptContent = script.polished_content || script.content;
+    // Use script content
+    const scriptContent = script.content;
 
     setGenerating(true);
     setProgressText('Connecting to Claude Sonnet 4...');
@@ -130,7 +130,7 @@ export function ScriptAnalyzer({ onComplete }: ScriptAnalyzerProps) {
   }, []);
 
   // Calculate expected scenes based on actual script word count
-  const scriptContent = script?.polished_content || script?.content || '';
+  const scriptContent = script?.content || '';
   const wordCount = countWords(scriptContent);
   const estimatedDurationMinutes = Math.ceil(wordCount / 150);
   const expectedScenes = Math.round((estimatedDurationMinutes * 60) / 6); // ~6 seconds per scene

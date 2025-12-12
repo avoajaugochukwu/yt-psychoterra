@@ -23,14 +23,9 @@ export default function ScenesPage() {
   const handleSetScript = () => {
     if (localScript.trim()) {
       const wordCount = countWords(localScript);
-      const estimatedDuration = Math.round((wordCount / 150) * 10) / 10;
       setScript({
         content: localScript,
         word_count: wordCount,
-        topic: 'Manual Entry',
-        tone: 'Epic',
-        era: 'Other',
-        target_duration: estimatedDuration,
         generated_at: new Date(),
       });
       setIsScriptSet(true);

@@ -1,137 +1,121 @@
-import { NextRequest } from 'next/server';
-import { getAnthropicClient } from '@/lib/ai/anthropic';
-import { SYSTEM_PROMPT, SCENE_BREAKDOWN_PROMPT } from '@/lib/prompts/all-prompts';
-import { SCENE_DURATION_SECONDS } from '@/lib/config/development';
+// ============================================================================
+// SCRIPT ANALYSIS API ROUTE (OPENAI GPT-4o)
+// Breaks scripts into Psychoterra marble statue scenes (1 scene per 6 seconds)
+// ============================================================================
 
-export const maxDuration = 600; // 10 minutes timeout for large scene generation
-export const runtime = 'nodejs'; // Use Node.js runtime for streaming support
+import { NextRequest, NextResponse } from 'next/server';
+import { openai } from '@/lib/ai/openai';
+import { SCENE_BREAKDOWN_PROMPT } from '@/lib/prompts/all-prompts';
+
+export const runtime = 'nodejs';
+export const maxDuration = 60;
+
+// Helper to count words
+function countWords(text: string): number {
+  return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+}
 
 export async function POST(request: NextRequest) {
   try {
     const { script } = await request.json();
 
-    if (!script) {
-      return new Response(
-        JSON.stringify({ error: 'Script is required' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
+    if (!script || typeof script !== 'string') {
+      return NextResponse.json(
+        { error: 'Script text is required' },
+        { status: 400 }
       );
     }
 
-    // Calculate expected scene count based on script duration
-    const wordCount = script.trim().split(/\s+/).length;
-    const wordsPerMinute = 150; // Average narration speed
-    const durationSeconds = Math.round((wordCount / wordsPerMinute) * 60);
-    const targetSceneCount = Math.round(durationSeconds / SCENE_DURATION_SECONDS);
+    if (script.length < 50) {
+      return NextResponse.json(
+        { error: 'Script is too short. Please provide at least 50 characters.' },
+        { status: 400 }
+      );
+    }
 
-    console.log(`[Scene Analysis] Analyzing script (${script.length} characters, ${wordCount} words, ~${Math.round(durationSeconds / 60)} minutes)`);
-    console.log(`[Scene Analysis] Target scene count: ${targetSceneCount} (${durationSeconds}s / ${SCENE_DURATION_SECONDS}s per scene)`);
+    // Calculate target scene count: 1 scene per 6 seconds
+    const wordCount = countWords(script);
+    const estimatedMinutes = wordCount / 150; // 150 words per minute (standard speaking rate)
+    const estimatedSeconds = estimatedMinutes * 60;
+    const targetSceneCount = Math.round(estimatedSeconds / 6); // 6 seconds per scene
 
-    const client = getAnthropicClient();
-    const prompt = SCENE_BREAKDOWN_PROMPT(script, targetSceneCount);
+    console.log(`[Script Analysis] Word count: ${wordCount}, Estimated duration: ${estimatedSeconds}s, Target scenes: ${targetSceneCount}`);
 
-    // Cap max_tokens at 32000 to accommodate large scene counts
-    // Sonnet 4 supports up to 64K output tokens
-    // Formula: 350 tokens per scene + buffer (e.g., 83 scenes × 350 = 29,050 tokens)
-    const maxTokens = Math.min(32000, Math.max(4000, targetSceneCount * 350));
-
-    // Use Claude Sonnet 4 with streaming for long scene generation
-    console.log(`[Scene Analysis] Starting streaming generation with max_tokens: ${maxTokens}`);
-
-    const stream = await client.messages.stream({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: maxTokens,
-      temperature: 0.7,
-      system: SYSTEM_PROMPT,
+    // Call OpenAI GPT-4o with SCENE_BREAKDOWN_PROMPT
+    const stream = await openai.chat.completions.create({
+      model: 'gpt-4o',
       messages: [
         {
+          role: 'system',
+          content: 'You are a visual director for Stoic philosophy content. You transform abstract concepts into metaphorical marble statue imagery. You NEVER depict literal human actions - only stone sculptures and symbolic elements.',
+        },
+        {
           role: 'user',
-          content: prompt,
+          content: SCENE_BREAKDOWN_PROMPT(script, targetSceneCount),
         },
       ],
+      temperature: 0.7,
+      max_tokens: 16000,
+      response_format: { type: 'json_object' }, // Ensure JSON output
+      stream: true,
     });
 
-    // Create a readable stream for the response
+    // Create streaming response with newline-delimited JSON
     const encoder = new TextEncoder();
-    let accumulatedText = '';
+    let accumulatedContent = '';
 
     const readableStream = new ReadableStream({
       async start(controller) {
         try {
           for await (const chunk of stream) {
-            if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
-              accumulatedText += chunk.delta.text;
+            const content = chunk.choices[0]?.delta?.content;
+
+            if (content) {
+              accumulatedContent += content;
 
               // Send progress update
-              const progressData = JSON.stringify({
+              const progressMessage = {
                 type: 'progress',
-                text: chunk.delta.text,
-              }) + '\n';
-              controller.enqueue(encoder.encode(progressData));
+                text: accumulatedContent,
+              };
+              controller.enqueue(encoder.encode(JSON.stringify(progressMessage) + '\n'));
             }
           }
 
-          // Parse the complete response
-          console.log(`[Scene Analysis] Stream complete, parsing JSON...`);
-
-          let scenes;
+          // Parse the final accumulated JSON
           try {
-            // Try to extract JSON array from the response
-            const jsonMatch = accumulatedText.match(/\[[\s\S]*\]/);
-            if (jsonMatch) {
-              scenes = JSON.parse(jsonMatch[0]);
-            } else {
-              scenes = JSON.parse(accumulatedText);
+            const parsedResult = JSON.parse(accumulatedContent);
+
+            // Validate the response has the expected structure
+            if (!parsedResult.scenes || !Array.isArray(parsedResult.scenes)) {
+              throw new Error('Invalid response format: missing scenes array');
             }
+
+            // Send completion message
+            const completeMessage = {
+              type: 'complete',
+              scenes: parsedResult.scenes,
+            };
+            controller.enqueue(encoder.encode(JSON.stringify(completeMessage) + '\n'));
+
+            console.log(`[Script Analysis] Successfully generated ${parsedResult.scenes.length} scenes`);
           } catch (parseError) {
-            console.error('[Scene Analysis] JSON parse error:', parseError);
-            const errorData = JSON.stringify({
+            console.error('[Script Analysis] Error parsing OpenAI response:', parseError);
+            const errorMessage = {
               type: 'error',
-              error: 'Failed to parse scene breakdown',
-              raw_content: accumulatedText.substring(0, 500),
-            }) + '\n';
-            controller.enqueue(encoder.encode(errorData));
-            controller.close();
-            return;
+              error: 'Failed to parse scene breakdown response',
+            };
+            controller.enqueue(encoder.encode(JSON.stringify(errorMessage) + '\n'));
           }
 
-          // Validate scenes
-          if (!Array.isArray(scenes)) {
-            const errorData = JSON.stringify({
-              type: 'error',
-              error: 'Expected array of scenes',
-            }) + '\n';
-            controller.enqueue(encoder.encode(errorData));
-            controller.close();
-            return;
-          }
-
-          console.log(`[Scene Analysis] Successfully parsed ${scenes.length} scenes (target: ${targetSceneCount})`);
-
-          // Send final result
-          const resultData = JSON.stringify({
-            type: 'complete',
-            scenes,
-            metadata: {
-              total_scenes: scenes.length,
-              target_scenes: targetSceneCount,
-              script_word_count: wordCount,
-              estimated_duration_seconds: durationSeconds,
-              average_snippet_length: Math.round(
-                scenes.reduce((sum, s) => sum + s.script_snippet.length, 0) / scenes.length
-              ),
-            },
-          }) + '\n';
-          controller.enqueue(encoder.encode(resultData));
           controller.close();
         } catch (error) {
-          console.error('[Scene Analysis] Stream error:', error);
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          const errorData = JSON.stringify({
+          console.error('[Script Analysis] Stream error:', error);
+          const errorMessage = {
             type: 'error',
-            error: 'Failed to analyze script',
-            details: errorMessage,
-          }) + '\n';
-          controller.enqueue(encoder.encode(errorData));
+            error: error instanceof Error ? error.message : 'Unknown streaming error',
+          };
+          controller.enqueue(encoder.encode(JSON.stringify(errorMessage) + '\n'));
           controller.close();
         }
       },
@@ -139,21 +123,18 @@ export async function POST(request: NextRequest) {
 
     return new Response(readableStream, {
       headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
+        'Content-Type': 'application/x-ndjson; charset=utf-8',
+        'Transfer-Encoding': 'chunked',
       },
     });
   } catch (error) {
-    console.error('[Scene Analysis] Error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-
-    return new Response(
-      JSON.stringify({
+    console.error('[Script Analysis] Error:', error);
+    return NextResponse.json(
+      {
         error: 'Failed to analyze script',
-        details: errorMessage,
-      }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
+      { status: 500 }
     );
   }
 }

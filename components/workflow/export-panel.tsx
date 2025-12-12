@@ -22,8 +22,6 @@ export function ExportPanel() {
   const router = useRouter();
   const {
     currentStep,
-    historicalTopic,
-    outline,
     script,
     scenes,
     storyboardScenes,
@@ -41,8 +39,6 @@ export function ExportPanel() {
 
   const getEstimatedSize = () => {
     let size = 0;
-    if (historicalTopic) size += 2; // ~2KB for topic JSON
-    if (outline) size += 5; // ~5KB for outline JSON
     if (script) size += script.word_count * 6; // ~6 bytes per word
     if (scenes) size += scenes.length * 500; // ~500 bytes per scene
     if (storyboardScenes) size += storyboardScenes.length * 1000; // ~1KB per storyboard scene (without images)
@@ -59,8 +55,6 @@ export function ExportPanel() {
 
     try {
       await createExportZip({
-        topic: historicalTopic,
-        outline,
         script,
         scenes,
         storyboardScenes,
@@ -76,18 +70,6 @@ export function ExportPanel() {
   };
 
   const exportItems = [
-    {
-      name: 'Story Topic',
-      available: !!historicalTopic,
-      icon: FileJson,
-      description: 'Topic details and metadata',
-    },
-    {
-      name: 'Outline',
-      available: !!outline,
-      icon: FileJson,
-      description: 'Story structure with beats',
-    },
     {
       name: 'Full Script',
       available: !!script,
@@ -155,14 +137,6 @@ export function ExportPanel() {
           <CardTitle>Project Details</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
-          {historicalTopic && (
-            <>
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Topic:</span>
-                <span className="text-sm font-medium">{historicalTopic.title}</span>
-              </div>
-            </>
-          )}
           {script && (
             <>
               <div className="flex justify-between">
@@ -170,8 +144,8 @@ export function ExportPanel() {
                 <span className="text-sm font-medium">{script.word_count} words</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-gray-600">Duration:</span>
-                <span className="text-sm font-medium">{script.target_duration} minutes</span>
+                <span className="text-sm text-gray-600">Estimated Duration:</span>
+                <span className="text-sm font-medium">{Math.round((script.word_count / 150) * 10) / 10} minutes</span>
               </div>
             </>
           )}

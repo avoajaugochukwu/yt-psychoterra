@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fal } from '@fal-ai/client';
-import { OIL_PAINTING_STYLE_SUFFIX, NEGATIVE_PROMPT_HISTORICAL } from '@/lib/prompts/all-prompts';
+import { IMAGE_GENERATION_SUFFIX, NEGATIVE_PROMPT_PSYCHOTERRA } from '@/lib/prompts/all-prompts';
 
 interface FalImageResult {
   data?: {
@@ -28,11 +28,11 @@ export async function POST(request: NextRequest) {
       credentials: apiKey,
     });
 
-    // Build enhanced prompt with oil painting style
-    const basePrompt = scene.visual_prompt || 'Historical scene';
+    // Build enhanced prompt with Psychoterra marble statue aesthetic
+    const basePrompt = scene.visual_prompt || 'Marble statue in dramatic lighting';
 
-    // Inject oil painting style suffix to ensure painterly, historically accurate visuals
-    const styledPrompt = `${basePrompt}${OIL_PAINTING_STYLE_SUFFIX}`;
+    // Inject Psychoterra style suffix to ensure marble statue, cinematic visuals
+    const styledPrompt = `${basePrompt}, ${IMAGE_GENERATION_SUFFIX}`;
 
     console.log(`[Scene Image] Generating image for scene ${scene.scene_number}`);
     console.log(`[Scene Image] Prompt length: ${styledPrompt.length} characters`);
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     const apiRequest = {
       input: {
         prompt: styledPrompt,
-        negative_prompt: NEGATIVE_PROMPT_HISTORICAL,
+        negative_prompt: NEGATIVE_PROMPT_PSYCHOTERRA,
         num_images: 1,
         aspect_ratio: '16:9',
         seed: Math.floor(Math.random() * 1000000), // Random seed for variety
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
       prompt_used: styledPrompt,
       aspect_ratio: '16:9',
       model: 'fal-ai/nano-banana',
-      style: 'oil-painting-historical',
+      style: 'psychoterra-marble-statue',
     });
   } catch (error) {
     console.error('[Scene Image] Generation error:', error);
