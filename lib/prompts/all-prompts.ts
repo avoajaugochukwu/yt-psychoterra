@@ -261,14 +261,20 @@ ${script}
    - Isolation/Solitude → Void backgrounds, single light sources
    - Transformation → Cracking stone, emerging light
 
-4. **Composition & Lighting:**
+4. **Colorful Dark Gradient Backgrounds (REQUIRED):**
+   - Use rich, cinematic dark gradients instead of plain black
+   - Examples: "dark gradient (deep purple to midnight blue)", "gradient (burgundy to obsidian)", "gradient (navy to deep violet)", "gradient (dark teal to charcoal)", "gradient (dark orange fading to black)"
+   - Match gradient colors to the mood: Purple/blue for wisdom, Red/orange for power, Teal/blue for calm, Purple/crimson for struggle
+   - ALWAYS specify gradient colors explicitly
+
+5. **Composition & Lighting:**
    - Centered symmetry or extreme close-ups (eyes/faces of stone)
    - Low-angle hero shots for power
    - Chiaroscuro (high contrast light/dark)
-   - Rim lighting (gold/orange/blue edges)
+   - Rim lighting (gold/orange/blue/teal edges matching gradient)
    - God rays, volumetric fog, dust particles
 
-5. **Texture & Material:**
+6. **Texture & Material:**
    - ALWAYS specify: marble, bronze, stone, weathered texture
    - NEVER: skin, flesh, living humans, realistic eyes
 
@@ -292,7 +298,7 @@ Return ONLY valid JSON in this exact format (no markdown, no code blocks, no exp
     {
       "scene_number": 1,
       "script_snippet": "The opening line from the script...",
-      "visual_prompt": "Hyper-realistic marble statue of [archetype], [emotional atmosphere], [lighting description], [compositional details]. Dramatic chiaroscuro lighting, volumetric fog, [specific mood elements]. 8k resolution, Unreal Engine 5 render style, classical sculpture aesthetic.",
+      "visual_prompt": "Hyper-realistic marble statue of [archetype], dark gradient background (deep purple to midnight blue), [emotional atmosphere], [lighting description], [compositional details]. Dramatic chiaroscuro lighting with golden and blue rim lighting, volumetric fog, [specific mood elements]. 8k resolution, Unreal Engine 5 render style, cinematic color grading, classical sculpture aesthetic.",
       "historical_context": "Metaphorical meaning: [what this statue scene represents philosophically]"
     }
   ]
@@ -302,10 +308,10 @@ Return ONLY valid JSON in this exact format (no markdown, no code blocks, no exp
 
 **Every visual_prompt MUST include:**
 - Statue material: "marble statue" OR "bronze bust" OR "stone sculpture"
-- Lighting: "chiaroscuro lighting" OR "golden rim lighting" OR "dramatic shadows"
+- Lighting: "chiaroscuro lighting" OR "golden rim lighting" OR "dramatic shadows" with "blue/teal/orange rim lighting"
 - Atmosphere: "volumetric fog" OR "dust particles" OR "ethereal mist"
-- Background: "deep black background" OR "void-like darkness" OR "storm clouds"
-- Quality: "8k resolution, Unreal Engine 5 render style" OR "hyper-realistic stone texture"
+- Background (REQUIRED): Dark gradient with specific colors - "dark gradient (deep purple to midnight blue)" OR "gradient (burgundy to obsidian)" OR "gradient (navy to deep violet)" OR "gradient (dark teal to charcoal)" OR "gradient (dark orange to black)"
+- Quality: "8k resolution, Unreal Engine 5 render style" AND "cinematic color grading"
 
 ### CONSTRAINTS
 
@@ -321,17 +327,17 @@ Return ONLY valid JSON in this exact format (no markdown, no code blocks, no exp
 
 /**
  * Suffix to append to all image generation prompts for Psychoterra aesthetic
- * Enforces marble statue, dramatic lighting, and cinematic quality
+ * Enforces marble statue, dramatic lighting, colorful dark gradients, and cinematic quality
  */
 export const IMAGE_GENERATION_SUFFIX =
-  "cinematic 3d render, hyper-realistic marble statue texture, classical sculpture, dramatic chiaroscuro lighting, deep black background, volumetric fog, floating dust particles, golden rim lighting, stoic atmosphere, 8k resolution, unreal engine 5 render style, dramatic shadows, ancient wisdom aesthetic, mythological grandeur";
+  "cinematic 3d render, hyper-realistic marble statue texture, classical sculpture, dramatic chiaroscuro lighting, dark gradient background with rich colors (deep purple to midnight blue, or burgundy to obsidian, or navy to violet, or dark teal to charcoal), volumetric fog, floating dust particles, golden and blue rim lighting, stoic atmosphere, 8k resolution, unreal engine 5 render style, dramatic shadows, ancient wisdom aesthetic, mythological grandeur, cinematic color grading";
 
 /**
  * Negative prompt for Psychoterra - blocks living humans, modern elements, unwanted styles
- * CRITICAL: No skin texture, no realistic living people, no bright cheerful scenes
+ * CRITICAL: No skin texture, no realistic living people, no bright cheerful scenes, NO NUDITY
  */
 export const NEGATIVE_PROMPT_PSYCHOTERRA =
-  "living human, skin texture, realistic eyes on flesh, modern clothing, contemporary setting, bright daylight, blue sky, sunny day, cheerful atmosphere, cartoon, anime, manga, sketch, drawing, vector art, minimalist, flat design, blur, low quality, text, watermark, logo, crowd of people, soldiers, army, battle scene, violence, gore, blood, open wounds, graphic violence, injuries, torture, mutilation, weapons in use, suffering";
+  "living human, skin texture, realistic eyes on flesh, modern clothing, contemporary setting, bright daylight, blue sky, sunny day, cheerful atmosphere, cartoon, anime, manga, sketch, drawing, vector art, minimalist, flat design, blur, low quality, text, watermark, logo, crowd of people, soldiers, army, battle scene, violence, gore, blood, open wounds, graphic violence, injuries, torture, mutilation, weapons in use, suffering, nudity, naked body, exposed genitals, bare buttocks, nude statue, exposed chest on female figures, inappropriate exposure, nsfw content";
 
 /**
  * @deprecated Use NEGATIVE_PROMPT_PSYCHOTERRA instead

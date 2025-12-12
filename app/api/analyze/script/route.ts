@@ -1,11 +1,11 @@
 // ============================================================================
-// SCRIPT ANALYSIS API ROUTE (OPENAI GPT-4o)
-// Breaks scripts into Psychoterra marble statue scenes (1 scene per 6 seconds)
+// SCRIPT ANALYSIS API ROUTE (TEMPLATE-BASED)
+// Breaks scripts into scenes with abstract marble statue imagery (1 scene per 6 seconds)
+// Uses modular template system for fast, varied image generation
 // ============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import { openai } from '@/lib/ai/openai';
-import { SCENE_BREAKDOWN_PROMPT } from '@/lib/prompts/all-prompts';
+import { generateVideoScenePrompts } from '@/lib/prompts/abstract-scene-templates';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -41,83 +41,37 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Script Analysis] Word count: ${wordCount}, Estimated duration: ${estimatedSeconds}s, Target scenes: ${targetSceneCount}`);
 
-    // Call OpenAI GPT-4o with SCENE_BREAKDOWN_PROMPT
-    const stream = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are a visual director for Stoic philosophy content. You transform abstract concepts into metaphorical marble statue imagery. You NEVER depict literal human actions - only stone sculptures and symbolic elements.',
-        },
-        {
-          role: 'user',
-          content: SCENE_BREAKDOWN_PROMPT(script, targetSceneCount),
-        },
-      ],
-      temperature: 0.7,
-      max_tokens: 16000,
-      response_format: { type: 'json_object' }, // Ensure JSON output
-      stream: true,
-    });
+    // Generate abstract scene prompts using modular template system
+    const visualPrompts = generateVideoScenePrompts(targetSceneCount);
 
-    // Create streaming response with newline-delimited JSON
+    // Create scenes array with template-based prompts
+    const scenes = visualPrompts.map((visualPrompt, index) => ({
+      scene_number: index + 1,
+      visual_prompt: visualPrompt,
+      narration: '', // No narration alignment needed
+    }));
+
+    console.log(`[Script Analysis] Successfully generated ${scenes.length} template-based scenes`);
+
+    // Create streaming response for compatibility with frontend
     const encoder = new TextEncoder();
-    let accumulatedContent = '';
-
     const readableStream = new ReadableStream({
       async start(controller) {
-        try {
-          for await (const chunk of stream) {
-            const content = chunk.choices[0]?.delta?.content;
+        // Send progress update (immediate since no API call)
+        const progressMessage = {
+          type: 'progress',
+          text: JSON.stringify({ scenes }),
+        };
+        controller.enqueue(encoder.encode(JSON.stringify(progressMessage) + '\n'));
 
-            if (content) {
-              accumulatedContent += content;
+        // Send completion message
+        const completeMessage = {
+          type: 'complete',
+          scenes: scenes,
+        };
+        controller.enqueue(encoder.encode(JSON.stringify(completeMessage) + '\n'));
 
-              // Send progress update
-              const progressMessage = {
-                type: 'progress',
-                text: accumulatedContent,
-              };
-              controller.enqueue(encoder.encode(JSON.stringify(progressMessage) + '\n'));
-            }
-          }
-
-          // Parse the final accumulated JSON
-          try {
-            const parsedResult = JSON.parse(accumulatedContent);
-
-            // Validate the response has the expected structure
-            if (!parsedResult.scenes || !Array.isArray(parsedResult.scenes)) {
-              throw new Error('Invalid response format: missing scenes array');
-            }
-
-            // Send completion message
-            const completeMessage = {
-              type: 'complete',
-              scenes: parsedResult.scenes,
-            };
-            controller.enqueue(encoder.encode(JSON.stringify(completeMessage) + '\n'));
-
-            console.log(`[Script Analysis] Successfully generated ${parsedResult.scenes.length} scenes`);
-          } catch (parseError) {
-            console.error('[Script Analysis] Error parsing OpenAI response:', parseError);
-            const errorMessage = {
-              type: 'error',
-              error: 'Failed to parse scene breakdown response',
-            };
-            controller.enqueue(encoder.encode(JSON.stringify(errorMessage) + '\n'));
-          }
-
-          controller.close();
-        } catch (error) {
-          console.error('[Script Analysis] Stream error:', error);
-          const errorMessage = {
-            type: 'error',
-            error: error instanceof Error ? error.message : 'Unknown streaming error',
-          };
-          controller.enqueue(encoder.encode(JSON.stringify(errorMessage) + '\n'));
-          controller.close();
-        }
+        controller.close();
       },
     });
 
