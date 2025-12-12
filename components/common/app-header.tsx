@@ -30,7 +30,7 @@ export function AppHeader() {
               >
                 <Sparkles className="h-6 w-6 text-red-800" />
                 <h1 className="text-xl font-bold text-gray-900">
-                  Historia
+                  Psychoterra
                 </h1>
                 <span className="text-sm text-gray-500">v2.0</span>
               </div>
@@ -58,7 +58,7 @@ export function AppHeader() {
 
             <div className="flex items-center gap-3">
               <p className="text-sm text-gray-600 hidden lg:block">
-                AI-Powered Historical Narratives
+                AI-Powered Stoic Content Creation
               </p>
             </div>
           </div>

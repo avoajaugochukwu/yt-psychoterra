@@ -22,8 +22,8 @@ const cinzel = Cinzel({
 });
 
 export const metadata: Metadata = {
-  title: "Historia - AI Historical Storytelling Engine",
-  description: "Generate cinematic Roman & Medieval historical narratives with AI-powered visual storytelling",
+  title: "Psychoterra - Stoic Philosophy Content Engine",
+  description: "AI-powered script enhancement and visual generation for Stoic psychology content with cinematic marble statue imagery",
 };
 
 export default function RootLayout({
