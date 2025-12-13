@@ -129,7 +129,14 @@ export function StoryboardGrid() {
             <CardContent className="p-4 space-y-3">
               {/* Scene Number and Status */}
               <div className="flex items-center justify-between">
-                <Badge variant="outline">Scene {scene.scene_number}</Badge>
+                <div className="flex items-center gap-1">
+                  <Badge variant="outline">Scene {scene.scene_number}</Badge>
+                  {scene.image_pool_index !== undefined && (
+                    <Badge variant="secondary" className="text-xs">
+                      #{scene.image_pool_index + 1}
+                    </Badge>
+                  )}
+                </div>
                 {scene.generation_status === 'completed' && (
                   <CheckCircle className="h-4 w-4 text-green-500" />
                 )}

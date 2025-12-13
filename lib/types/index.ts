@@ -62,6 +62,7 @@ export interface StoryboardScene extends Scene {
   generation_status: 'pending' | 'generating' | 'completed' | 'error';
   error_message?: string;
   is_regenerating?: boolean;
+  image_pool_index?: number; // Index in the 60-image pool this scene is using
 }
 
 // Workflow Management

@@ -116,7 +116,14 @@ export function SceneEditor({ scene, isOpen, onClose, onNavigate }: SceneEditorP
       <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
-            <span>Scene {scene.scene_number}</span>
+            <div className="flex items-center gap-2">
+              <span>Scene {scene.scene_number}</span>
+              {scene.image_pool_index !== undefined && (
+                <Badge variant="secondary" className="text-xs">
+                  Image #{scene.image_pool_index + 1}/60
+                </Badge>
+              )}
+            </div>
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"

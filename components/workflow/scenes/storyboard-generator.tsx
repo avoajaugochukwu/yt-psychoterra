@@ -7,6 +7,7 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { StoryboardScene } from '@/lib/types';
 import { Film, CheckCircle, AlertCircle } from 'lucide-react';
+import { MAX_GENERATED_IMAGES } from '@/lib/constants';
 
 interface StoryboardGeneratorProps {
   onComplete?: () => void;
@@ -24,7 +25,9 @@ export function StoryboardGenerator({ onComplete }: StoryboardGeneratorProps) {
 
   const [generatingScenes, setGeneratingScenes] = useState(false);
   const [currentGeneratingScene, setCurrentGeneratingScene] = useState(0);
+  const [imagePoolGenerated, setImagePoolGenerated] = useState(0);
   const hasGeneratedScenesRef = useRef(false);
+  const imagePoolRef = useRef<string[]>([]); // Store the 60 generated image URLs
 
   const generateSceneImage = async (scene: StoryboardScene) => {
     try {
@@ -70,11 +73,16 @@ export function StoryboardGenerator({ onComplete }: StoryboardGeneratorProps) {
     hasGeneratedScenesRef.current = true;
     setGeneratingScenes(true);
 
+    // Determine how many unique images to generate (max 60)
+    const totalScenes = scenes.length;
+    const imagesToGenerate = Math.min(totalScenes, MAX_GENERATED_IMAGES);
+
     // Initialize storyboard scenes from regular scenes
     const initialStoryboardScenes: StoryboardScene[] = scenes.map((scene) => ({
       ...scene,
       generation_status: 'pending',
-      image_url: undefined, // Ensure image_url is undefined initially
+      image_url: undefined,
+      image_pool_index: undefined,
     }));
     setStoryboardScenes(initialStoryboardScenes);
 
@@ -83,18 +91,79 @@ export function StoryboardGenerator({ onComplete }: StoryboardGeneratorProps) {
       onComplete();
     }
 
-    // Generate all images in parallel for maximum speed
-    const generationPromises = scenes.map((scene) =>
-      generateSceneImage({
-        ...scene,
-        generation_status: 'pending',
-      } as StoryboardScene)
-    );
+    // PHASE 1: Generate only the first N images (up to 60)
+    console.log(`Generating image pool: ${imagesToGenerate} unique images for ${totalScenes} scenes`);
 
-    // Wait for all generations to complete
-    await Promise.all(generationPromises);
+    const imageGenerationPromises = scenes.slice(0, imagesToGenerate).map(async (scene, index) => {
+      updateStoryboardScene(scene.scene_number, {
+        generation_status: 'generating',
+      });
+
+      try {
+        const response = await fetch('/api/generate/scene-image', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            scene,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to generate scene image');
+        }
+
+        const data = await response.json();
+
+        // Store in image pool
+        imagePoolRef.current[index] = data.image_url;
+        setImagePoolGenerated(prev => prev + 1);
+
+        updateStoryboardScene(scene.scene_number, {
+          image_url: data.image_url,
+          visual_prompt: data.prompt_used,
+          generation_status: 'completed',
+          image_pool_index: index,
+        });
+
+        return data.image_url;
+      } catch (error) {
+        console.error(`Image pool generation error (index ${index}):`, error);
+        updateStoryboardScene(scene.scene_number, {
+          generation_status: 'error',
+          error_message: 'Failed to generate image',
+        });
+        return null;
+      }
+    });
+
+    // Wait for all unique images to be generated
+    await Promise.all(imageGenerationPromises);
+
+    // PHASE 2: Distribute images randomly across ALL scenes
+    console.log('Distributing images across all scenes...');
+
+    // Create shuffled pool of image indices
+    const shuffledIndices = Array.from({ length: imagesToGenerate }, (_, i) => i)
+      .sort(() => Math.random() - 0.5);
+
+    // Assign images to all scenes using the shuffled pool (cycling through if needed)
+    for (let i = 0; i < totalScenes; i++) {
+      const poolIndex = shuffledIndices[i % imagesToGenerate];
+      const imageUrl = imagePoolRef.current[poolIndex];
+
+      if (imageUrl) {
+        updateStoryboardScene(scenes[i].scene_number, {
+          image_url: imageUrl,
+          generation_status: 'completed',
+          image_pool_index: poolIndex,
+        });
+      }
+    }
 
     setGeneratingScenes(false);
+    console.log(`✓ Complete: ${imagesToGenerate} images distributed across ${totalScenes} scenes`);
   };
 
   useEffect(() => {
@@ -106,15 +175,21 @@ export function StoryboardGenerator({ onComplete }: StoryboardGeneratorProps) {
 
   const completedScenes = storyboardScenes.filter((s) => s.generation_status === 'completed').length;
   const errorScenes = storyboardScenes.filter((s) => s.generation_status === 'error').length;
+  const totalScenes = scenes.length;
+  const imagesToGenerate = Math.min(totalScenes, MAX_GENERATED_IMAGES);
+  const estimatedCost = (imagesToGenerate * 0.004).toFixed(2);
+  const savedCost = totalScenes > MAX_GENERATED_IMAGES
+    ? ((totalScenes - MAX_GENERATED_IMAGES) * 0.004).toFixed(2)
+    : '0.00';
 
   // Update progress tracking based on actual completed scenes
   useEffect(() => {
     if (storyboardScenes.length > 0) {
       setCurrentGeneratingScene(completedScenes);
-      const progress = (completedScenes / storyboardScenes.length) * 100;
+      const progress = (imagePoolGenerated / imagesToGenerate) * 100;
       setSceneGenerationProgress(progress);
     }
-  }, [completedScenes, storyboardScenes.length, setCurrentGeneratingScene, setSceneGenerationProgress]);
+  }, [completedScenes, imagePoolGenerated, imagesToGenerate, storyboardScenes.length, setCurrentGeneratingScene, setSceneGenerationProgress]);
 
   return (
     <Card className="p-8">
@@ -132,22 +207,34 @@ export function StoryboardGenerator({ onComplete }: StoryboardGeneratorProps) {
         </div>
 
         <div className="space-y-2">
-          <h3 className="text-xl font-semibold font-serif">Generating Historical Storyboard</h3>
+          <h3 className="text-xl font-semibold font-serif">Generating Image Library</h3>
           <p className="text-muted-foreground">
-            Creating cinematic oil painting style visuals for each scene
+            {imagePoolGenerated < imagesToGenerate
+              ? `Creating ${imagesToGenerate} unique images for ${totalScenes} scenes`
+              : `Distributing ${imagesToGenerate} images across ${totalScenes} scenes`}
           </p>
+          {totalScenes > MAX_GENERATED_IMAGES && (
+            <p className="text-sm text-green-600 dark:text-green-400 font-medium">
+              Cost optimized: ${estimatedCost} (saving ${savedCost})
+            </p>
+          )}
         </div>
 
         {/* Progress Information */}
         <div className="space-y-4 max-w-md mx-auto">
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Progress</span>
+              <span className="text-muted-foreground">Image Pool Progress</span>
               <span className="font-medium">
-                {currentGeneratingScene} / {scenes.length} scenes
+                {imagePoolGenerated} / {imagesToGenerate} unique images
               </span>
             </div>
             <Progress value={sceneGenerationProgress} className="h-2" />
+            {totalScenes > imagesToGenerate && (
+              <p className="text-xs text-muted-foreground text-center">
+                {imagesToGenerate} images will be distributed across all {totalScenes} scenes
+              </p>
+            )}
           </div>
 
           {/* Status Badges */}
@@ -200,9 +287,17 @@ export function StoryboardGenerator({ onComplete }: StoryboardGeneratorProps) {
         </div>
 
         <div className="text-sm text-muted-foreground space-y-1">
-          <p>Images are being generated with oil painting style.</p>
-          <p>Each scene will feature historically accurate, dramatic visuals.</p>
-          <p className="text-xs">Using nano-banana model (~7-10 seconds per scene)</p>
+          <p>Images generated with cinematic oil painting style.</p>
+          {totalScenes > MAX_GENERATED_IMAGES ? (
+            <p className="text-xs">
+              Generating {imagesToGenerate} unique images, randomly distributed across {totalScenes} scenes
+            </p>
+          ) : (
+            <p className="text-xs">
+              Generating {imagesToGenerate} unique images for {totalScenes} scenes
+            </p>
+          )}
+          <p className="text-xs">Using nano-banana model (~7-10 seconds per image)</p>
         </div>
       </div>
     </Card>
