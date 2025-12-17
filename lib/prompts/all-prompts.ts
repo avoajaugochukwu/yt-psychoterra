@@ -345,14 +345,14 @@ Return ONLY valid JSON in this exact format (no markdown, no code blocks, no exp
  * Enforces marble statue, dramatic lighting, colorful dark gradients, and cinematic quality
  */
 export const IMAGE_GENERATION_SUFFIX =
-  "cinematic 3d render, hyper-realistic marble statue texture, classical sculpture, dramatic chiaroscuro lighting, dark gradient background with rich colors (deep purple to midnight blue, or burgundy to obsidian, or navy to violet, or dark teal to charcoal), volumetric fog, floating dust particles, golden and blue rim lighting, stoic atmosphere, 8k resolution, unreal engine 5 render style, dramatic shadows, ancient wisdom aesthetic, mythological grandeur, cinematic color grading";
+  "cinematic 3d render, hyper-realistic marble statue texture, classical sculpture, dramatic chiaroscuro lighting, dark gradient background with rich colors (deep purple to midnight blue, or burgundy to obsidian, or navy to violet, or dark teal to charcoal), volumetric fog, floating dust particles, golden and blue rim lighting, stoic atmosphere, 8k resolution, unreal engine 5 render style, dramatic shadows, ancient wisdom aesthetic, mythological grandeur, cinematic color grading, edge to edge composition, full bleed image, no borders, no frames, no vignette";
 
 /**
  * Negative prompt for Psychoterra - blocks living humans, modern elements, unwanted styles
  * CRITICAL: No skin texture, no realistic living people, no bright cheerful scenes, NO NUDITY
  */
 export const NEGATIVE_PROMPT_PSYCHOTERRA =
-  "living human, skin texture, realistic eyes on flesh, modern clothing, contemporary setting, bright daylight, blue sky, sunny day, cheerful atmosphere, cartoon, anime, manga, sketch, drawing, vector art, minimalist, flat design, blur, low quality, text, watermark, logo, crowd of people, soldiers, army, battle scene, violence, gore, blood, open wounds, graphic violence, injuries, torture, mutilation, weapons in use, suffering, nudity, naked body, exposed genitals, bare buttocks, nude statue, exposed chest on female figures, inappropriate exposure, nsfw content";
+  "living human, skin texture, realistic eyes on flesh, modern clothing, contemporary setting, bright daylight, blue sky, sunny day, cheerful atmosphere, cartoon, anime, manga, sketch, drawing, vector art, minimalist, flat design, blur, low quality, text, watermark, logo, crowd of people, soldiers, army, battle scene, violence, gore, blood, open wounds, graphic violence, injuries, torture, mutilation, weapons in use, suffering, nudity, naked body, exposed genitals, bare buttocks, nude statue, exposed chest on female figures, inappropriate exposure, nsfw content, border, frame, decorative border, picture frame, ornate frame, golden frame, wooden frame, vignette, edge decoration, framed artwork, photo border, canvas border";
 
 /**
  * @deprecated Use NEGATIVE_PROMPT_PSYCHOTERRA instead
