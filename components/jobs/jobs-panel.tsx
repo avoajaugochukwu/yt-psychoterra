@@ -46,7 +46,10 @@ interface JobSummary {
 
 /** "01 Aug 2026 04:13" in the viewer's timezone — absolute, so rows can be ordered by eye. */
 function stamp(iso: string): string {
-  const t = Date.parse(iso.replace(" ", "T") + "Z");
+  // Job rows are naive UTC ("2026-08-26 00:11:45") and need a Z; render rows are
+  // already ISO ending in Z — appending another would make it NaN (blank date).
+  const hasTz = /[zZ]$|[+-]\d\d:?\d\d$/.test(iso);
+  const t = Date.parse(hasTz ? iso : iso.replace(" ", "T") + "Z");
   if (Number.isNaN(t)) return "";
   return new Date(t)
     .toLocaleString("en-GB", {
