@@ -19,7 +19,7 @@ export async function GET() {
     // renderId -> ClickUp URL, via the render id stored in each job's export.
     const clickupByRender = new Map<string, string>();
     for (const j of jobs) {
-      const rid = j.projectJson?.state?.renders?.[0]?.renderId;
+      const rid = j.renderId;
       if (rid) clickupByRender.set(rid, clickupTaskUrl(j.taskId));
     }
     return NextResponse.json({

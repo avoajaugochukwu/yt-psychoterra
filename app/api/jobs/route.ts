@@ -92,13 +92,13 @@ export async function GET() {
   // renderId -> the job that produced it (visible or hidden), for re-attaching.
   const jobByRenderId = new Map<string, SleepJob>();
   for (const j of allJobs) {
-    const rid = j.projectJson?.state?.renders?.[0]?.renderId;
+    const rid = j.renderId;
     if (rid) jobByRenderId.set(rid, j);
   }
 
   const ownedByShown = new Set<string>();
   const jobRows = shown.map((j) => {
-    const renderId = j.projectJson?.state?.renders?.[0]?.renderId ?? null;
+    const renderId = j.renderId;
     if (renderId) ownedByShown.add(renderId);
     const render = renderId ? renderById.get(renderId) : undefined;
     const videoUrl = render?.url ?? null;

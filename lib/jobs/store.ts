@@ -32,6 +32,10 @@ export interface SleepJob {
   error: string | null;
   /** Finished WorkflowExport — the UI hydrates this. Null until ready. */
   projectJson: WorkflowExport | null;
+  /** state.renders[0].renderId. List queries extract just this; the full
+   *  projectJson blob (~1 MB/row) is left in Postgres. getJob derives it from
+   *  the parsed projectJson. */
+  renderId: string | null;
   /** Inputs from Baserow, kept so a job can be re-run/inspected. */
   script: string;
   audioUrl: string | null;
@@ -78,6 +82,7 @@ async function ensureTable() {
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function rowToJob(r: any): SleepJob {
+  const projectJson = r.project_json ? JSON.parse(String(r.project_json)) : null;
   return {
     taskId: String(r.task_id),
     listId: r.list_id ?? null,
@@ -88,7 +93,8 @@ function rowToJob(r: any): SleepJob {
     completed: Number(r.completed ?? 0),
     failed: Number(r.failed ?? 0),
     error: r.error ?? null,
-    projectJson: r.project_json ? JSON.parse(String(r.project_json)) : null,
+    projectJson,
+    renderId: r.render_id ?? projectJson?.state?.renders?.[0]?.renderId ?? null,
     script: String(r.script ?? ""),
     audioUrl: r.audio_url ?? null,
     baserowRowId: r.baserow_row_id == null ? null : Number(r.baserow_row_id),
@@ -198,11 +204,19 @@ export async function updateJob(
   });
 }
 
+// Every column the list paths read, minus two heavy blobs they never read:
+// project_json (~1 MB/row) and script (~170 KB/row). renderId is extracted from
+// project_json server-side instead of shipping it. getJob still returns both.
+const LIST_COLS = `task_id, list_id, name, status, progress, total, completed, failed, error,
+    audio_url, baserow_row_id, list_name, clickup_status, status_checked_at, hidden,
+    clickup_done_at, created_at, updated_at,
+    (project_json::jsonb #>> '{state,renders,0,renderId}') AS render_id`;
+
 /** Jobs shown on the dashboard (not hidden), newest first. */
 export async function listVisibleJobs(): Promise<SleepJob[]> {
   await ensureTable();
   const res = await db.execute(
-    "SELECT * FROM sleep_jobs WHERE hidden = 0 ORDER BY created_at DESC",
+    `SELECT ${LIST_COLS} FROM sleep_jobs WHERE hidden = 0 ORDER BY created_at DESC`,
   );
   return res.rows.map(rowToJob);
 }
@@ -212,7 +226,7 @@ export async function listVisibleJobs(): Promise<SleepJob[]> {
  *  ClickUp and the project. Never render these directly. */
 export async function listAllJobs(): Promise<SleepJob[]> {
   await ensureTable();
-  const res = await db.execute("SELECT * FROM sleep_jobs ORDER BY created_at DESC");
+  const res = await db.execute(`SELECT ${LIST_COLS} FROM sleep_jobs ORDER BY created_at DESC`);
   return res.rows.map(rowToJob);
 }
 

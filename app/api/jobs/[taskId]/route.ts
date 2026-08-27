@@ -29,7 +29,7 @@ export async function GET(
   // that is what turns "Rendering" into a real percentage, and a dead render
   // into "Render failed" instead of a bar that never moves. Both lookups are
   // best-effort: a job page must still render when S3 or Modal is unreachable.
-  const renderId = job.projectJson?.state?.renders?.[0]?.renderId ?? null;
+  const renderId = job.renderId;
   let videoUrl: string | null = null;
   let modal: ModalProgress | null = null;
   if (renderId) {

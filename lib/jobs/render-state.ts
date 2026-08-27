@@ -68,13 +68,12 @@ function modalErrorMessage(modal: ModalProgress): string | null {
 export function deriveJobState(
   job: Pick<
     SleepJob,
-    "status" | "progress" | "error" | "total" | "completed" | "failed" | "projectJson"
+    "status" | "progress" | "error" | "total" | "completed" | "failed" | "renderId"
   >,
   videoUrl: string | null = null,
   modal?: ModalProgress | null,
 ): JobState {
-  const render = job.projectJson?.state?.renders?.[0] ?? null;
-  const renderId = render?.renderId ?? null;
+  const renderId = job.renderId ?? null;
 
   const base = { renderId, videoUrl };
 
