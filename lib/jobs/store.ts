@@ -230,6 +230,23 @@ export async function listAllJobs(): Promise<SleepJob[]> {
   return res.rows.map(rowToJob);
 }
 
+/** One job WITHOUT the heavy blobs. Selects the same projected columns the list
+ *  paths use (render_id extracted in SQL), so project_json (~1 MB) and script
+ *  (~170 KB) never leave Postgres. Use this for status polls and existence/
+ *  status pre-reads; use getJob only when the caller needs projectJson. */
+export type SleepJobMeta = Omit<SleepJob, "projectJson" | "script">;
+
+export async function getJobMeta(taskId: string): Promise<SleepJobMeta | null> {
+  await ensureTable();
+  const res = await db.execute({
+    sql: `SELECT ${LIST_COLS} FROM sleep_jobs WHERE task_id = ?`,
+    args: [taskId],
+  });
+  if (!res.rows[0]) return null;
+  const { projectJson: _p, script: _s, ...meta } = rowToJob(res.rows[0]);
+  return meta;
+}
+
 /** Claim the oldest queued job, flipping it to running. */
 export async function claimNextQueuedJob(): Promise<SleepJob | null> {
   await ensureTable();

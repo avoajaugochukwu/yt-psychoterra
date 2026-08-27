@@ -38,7 +38,7 @@ export function JobDetail({ taskId }: { taskId: string }) {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(`/api/jobs/${taskId}`, { cache: "no-store" });
+      const res = await fetch(`/api/jobs/${taskId}?view=status`, { cache: "no-store" });
       if (!res.ok) {
         setError(res.status === 404 ? "Job not found — it may have been deleted or aged out." : `Error ${res.status}`);
         return;

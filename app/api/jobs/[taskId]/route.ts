@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { deleteJob, getJob, updateJob } from "@/lib/jobs/store";
+import { deleteJob, getJob, getJobMeta, updateJob } from "@/lib/jobs/store";
 import { enqueueJob, ensureResumed } from "@/lib/jobs/worker";
 import { deriveJobState, type ModalProgress } from "@/lib/jobs/render-state";
 import { clickupTaskUrl } from "@/lib/jobs/clickup";
@@ -10,17 +10,21 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * GET a single job including its finished `projectJson` (a WorkflowExport) once
- * ready, so the page can hydrate it via the import path. Touching it also
- * re-queues interrupted jobs (resume point).
+ * GET a single job. Default response includes the finished `projectJson` (a
+ * WorkflowExport) once ready, so the page can hydrate it via the import path.
+ * `?view=status` serves the same fields MINUS `projectJson` from `getJobMeta`,
+ * skipping the ~1 MB blob read — that is what the status pollers use every few
+ * seconds; they fetch the full blob once, when the job flips to ready.
+ * Touching either re-queues interrupted jobs (resume point).
  */
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ taskId: string }> },
 ) {
   await ensureResumed();
   const { taskId } = await params;
-  const job = await getJob(taskId);
+  const statusView = new URL(req.url).searchParams.get("view") === "status";
+  const job = statusView ? await getJobMeta(taskId) : await getJob(taskId);
   if (!job) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
@@ -60,7 +64,7 @@ export async function GET(
     completed: job.completed,
     failed: job.failed,
     error: job.error,
-    projectJson: job.projectJson,
+    projectJson: "projectJson" in job ? job.projectJson : undefined,
     updatedAt: job.updatedAt,
   });
 }
@@ -84,7 +88,7 @@ export async function POST(
     body = {};
   }
 
-  const job = await getJob(taskId);
+  const job = await getJobMeta(taskId);
   if (!job) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }

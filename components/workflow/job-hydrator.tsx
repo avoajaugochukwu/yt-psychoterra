@@ -42,7 +42,9 @@ export function JobHydrator() {
 
     const poll = async () => {
       try {
-        const res = await fetch(`/api/jobs/${jobId}`, { cache: "no-store" });
+        // Status view skips the ~1 MB projectJson blob. We fetch the full job
+        // ONCE below, only when it flips to a state that carries a project.
+        const res = await fetch(`/api/jobs/${jobId}?view=status`, { cache: "no-store" });
         if (!res.ok) {
           if (alive) setState({ status: "failed", progress: null, error: res.status === 404 ? "Job not found." : `Error ${res.status}`, projectJson: null });
           return;
@@ -55,12 +57,18 @@ export function JobHydrator() {
         // can fix the failed images and render manually.
         if (
           (job.status === "ready" || job.status === "needs_images") &&
-          job.projectJson &&
           !appliedRef.current
         ) {
           appliedRef.current = true;
-          const { state: ws } = parseWorkflowFile(JSON.stringify(job.projectJson));
-          applyWorkflow(ws);
+          const fullRes = await fetch(`/api/jobs/${jobId}`, { cache: "no-store" });
+          if (!fullRes.ok || !alive) return;
+          const full = (await fullRes.json()) as JobState;
+          if (!alive) return;
+          setState(full);
+          if (full.projectJson) {
+            const { state: ws } = parseWorkflowFile(JSON.stringify(full.projectJson));
+            applyWorkflow(ws);
+          }
           return; // done — stop polling
         }
         if (job.status === "queued" || job.status === "running") {

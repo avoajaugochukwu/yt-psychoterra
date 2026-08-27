@@ -19,7 +19,7 @@ import { markVideoProcessed } from "./baserow";
 import { boardForList, statusInProgressFor, statusDoneFor } from "./config";
 import {
   claimNextQueuedJob,
-  getJob,
+  getJobMeta,
   requeueRunningJobs,
   updateJob,
   type SleepJob,
@@ -72,7 +72,7 @@ async function processJob(job: SleepJob): Promise<void> {
 
   // Cooperative cancellation: the dashboard's Cancel sets status → 'cancelled'.
   const isCancelled = async (): Promise<boolean> =>
-    (await getJob(taskId))?.status === "cancelled";
+    (await getJobMeta(taskId))?.status === "cancelled";
   const stopIfCancelled = async (where: string): Promise<boolean> => {
     if (!(await isCancelled())) return false;
     await updateJob(taskId, { progress: `Cancelled (${where})` });
@@ -365,6 +365,6 @@ export async function ensureResumed(): Promise<void> {
 /** Enqueue an already-created (status 'queued') job for processing. */
 export async function enqueueJob(taskId: string): Promise<void> {
   await ensureResumed();
-  const job = await getJob(taskId);
+  const job = await getJobMeta(taskId);
   if (job && job.status === "queued") kickWorker();
 }
