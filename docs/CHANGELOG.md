@@ -18,6 +18,7 @@ Supabase Postgres), `no-gap-breakdown.ts` / `sleep-scene-prompt.ts` /
 
 ## Months
 
+- [2026-09](changelog/2026-09.md) — 1 dated entry
 - [2026-08](changelog/2026-08.md) — 3 dated entries
 - [2026-07](changelog/2026-07.md) — 7 dated entries
 - [2026-06](changelog/2026-06.md) — 8 dated entries

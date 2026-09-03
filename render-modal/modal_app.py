@@ -44,8 +44,7 @@ import modal
 # --- geometry / look (match build-input RENDER_* + the effect components) ---
 FPS = 24
 W, H = 1920, 1080
-CRF = 26
-PRESET = "medium"
+CRF = 26                           # band center; _pick_encoder jitters ±1 per render
 CROSSFADE_SEC = 1.2
 GRAIN = 9                          # ffmpeg temporal noise ~ GrainVignette's 6% overlay grain
 SCENE_CORES = 2
@@ -189,6 +188,23 @@ def _fetch(url, path):
 
 def _slug(s):
     return "".join(c if c.isalnum() else "-" for c in (s or "sleep-story").lower()).strip("-")[:60] or "sleep-story"
+
+
+# Per-render encoder fingerprint. Seeded off render_id so it's deterministic
+# (logged, reproducible) but varies across videos — masks the "every upload has
+# one identical x264 signature" tell. Bands stay next to the CRF 26 / medium
+# baseline so quality never visibly moves. Per render only, never per channel.
+ENCODER_PRESETS = ["medium", "faster", "veryfast"]
+ENCODER_TAGS = ["Lavf60.3.100", "Lavf60.16.100", "Lavf61.1.100", "Lavf61.7.100"]
+
+
+def _pick_encoder(seed):
+    rng = random.Random(f"{seed}:enc")
+    return {
+        "crf": CRF + rng.randint(-1, 1),        # 25..27
+        "preset": rng.choice(ENCODER_PRESETS),
+        "encoder": rng.choice(ENCODER_TAGS),
+    }
 
 
 def _s3():
@@ -353,16 +369,18 @@ def render_one(job):
         open(job["cap_file"], "w").write(job["caption"])
     inputs, fc, out_label = _build_filter(job)
     out = f"{WORK}/clip{i:04d}.mp4"
+    enc = job["enc"]
     _sh(["ffmpeg", "-y", *inputs, "-filter_complex", fc, "-map", f"[{out_label}]",
          "-t", str(job["duration"]), "-r", str(FPS),
-         "-c:v", "libx264", "-preset", PRESET, "-crf", str(CRF), "-pix_fmt", "yuv420p", out])
+         "-c:v", "libx264", "-preset", enc["preset"], "-crf", str(enc["crf"]),
+         "-pix_fmt", "yuv420p", out])
     key = f"{job['tmp_prefix']}/clip{i:04d}.mp4"
     _s3().upload_file(out, job["bucket"], key)
     return {"idx": i, "key": key, "sec": round(time.time() - t0, 2)}
 
 
 @app.function(secrets=[secret], cpu=ASSEMBLE_CORES, memory=ASSEMBLE_MEM_MB, timeout=1800)
-def assemble(render_id, clip_keys, bucket, tmp_prefix, audio_url, audio_dur, sound_effect, title):
+def assemble(render_id, clip_keys, bucket, tmp_prefix, audio_url, audio_dur, sound_effect, title, enc):
     os.makedirs(WORK, exist_ok=True)
     t0 = time.time()
     s3 = _s3()
@@ -391,11 +409,15 @@ def assemble(render_id, clip_keys, bucket, tmp_prefix, audio_url, audio_dur, sou
              f"[1:a]volume=1.0[a1];[2:a]volume={amb_vol}[a2];"
              f"[a1][a2]amix=inputs=2:duration=first:normalize=0[a]",
              "-map", "0:v:0", "-map", "[a]", "-t", str(audio_dur),
-             "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-shortest", final])
+             "-c:v", "copy", "-c:a", "aac", "-b:a", "160k",
+             "-metadata", f"encoder={enc['encoder']}", "-movflags", "+faststart",
+             "-shortest", final])
     else:
         _sh(["ffmpeg", "-y", "-i", f"{WORK}/video.mp4", "-i", f"{WORK}/narr.mp3",
              "-map", "0:v:0", "-map", "1:a:0", "-t", str(audio_dur),
-             "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-shortest", final])
+             "-c:v", "copy", "-c:a", "aac", "-b:a", "160k",
+             "-metadata", f"encoder={enc['encoder']}", "-movflags", "+faststart",
+             "-shortest", final])
 
     key = f"renders/{render_id}/{_slug(title)}.mp4"
     s3.upload_file(final, bucket, key, ExtraArgs={"ContentType": "video/mp4"})
@@ -422,6 +444,8 @@ def driver(render_id, scenes, audio_url, audio_dur, sound_effect, title, overlay
     seed = int(hashlib.md5(render_id.encode()).hexdigest()[:8], 16)
     sched = schedule_overlays(durations, seed, overlay_pool(overlay_pack))
     caps = select_captions(starts_sec, snippets, seed ^ 0x9e3779b9)
+    enc = _pick_encoder(render_id)
+    print(f"[render-enc {render_id}] crf={enc['crf']} preset={enc['preset']} encoder={enc['encoder']}")
 
     jobs = []
     for i, s in enumerate(scenes):
@@ -433,7 +457,7 @@ def driver(render_id, scenes, audio_url, audio_dur, sound_effect, title, overlay
             "stars_seek": round(starts_sec[i] % 60, 2),
             "title": title if starts_sec[i] < TITLE_TOTAL else None,
             "caption": caps.get(i),
-            "bucket": bucket, "tmp_prefix": tmp_prefix,
+            "bucket": bucket, "tmp_prefix": tmp_prefix, "enc": enc,
         })
 
     try:
@@ -447,7 +471,7 @@ def driver(render_id, scenes, audio_url, audio_dur, sound_effect, title, overlay
                  scene_core_sec=round(core_sec, 1), cost=round(usd, 4))
         ordered = [keys[i] for i in range(len(jobs))]
         res = assemble.remote(render_id, ordered, bucket, tmp_prefix,
-                              audio_url, audio_dur, sound_effect, title)
+                              audio_url, audio_dur, sound_effect, title, enc)
         core_sec += res["assemble_sec"] * ASSEMBLE_CORES
         usd += _container_usd(ASSEMBLE_CORES, ASSEMBLE_MEM_MB, res["assemble_sec"])
         url = _public_url(bucket, res["key"])
