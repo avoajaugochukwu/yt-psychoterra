@@ -192,9 +192,11 @@ def _slug(s):
 
 # Per-render encoder fingerprint. Seeded off render_id so it's deterministic
 # (logged, reproducible) but varies across videos — masks the "every upload has
-# one identical x264 signature" tell. Bands stay next to the CRF 26 / medium
-# baseline so quality never visibly moves. Per render only, never per channel.
-ENCODER_PRESETS = ["medium", "faster", "veryfast"]
+# one identical x264 signature" tell. Per render only, never per channel.
+# 'medium' dropped: on a dark, near-static sleep video it's 3-5x slower to encode
+# than the fast presets for no visible gain, and it set the slow tail whenever a
+# render randomly drew it. Fast-preset pool keeps the fingerprint jitter, cheaper.
+ENCODER_PRESETS = ["faster", "veryfast", "superfast"]
 ENCODER_TAGS = ["Lavf60.3.100", "Lavf60.16.100", "Lavf61.1.100", "Lavf61.7.100"]
 
 
@@ -390,7 +392,8 @@ def assemble(render_id, clip_keys, bucket, tmp_prefix, audio_url, audio_dur, sou
         local = f"{WORK}/{os.path.basename(k)}"
         s3.download_file(bucket, k, local)
         return local
-    with ThreadPoolExecutor(max_workers=ASSEMBLE_CORES * 2) as ex:
+    # Pulling the clips is network-bound, not CPU-bound — don't tie it to cores.
+    with ThreadPoolExecutor(max_workers=min(32, len(clip_keys) or 1)) as ex:
         locals_ = list(ex.map(dl, clip_keys))
 
     with open(f"{WORK}/list.txt", "w") as f:
